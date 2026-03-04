@@ -1,0 +1,1932 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SF Prototyping Tool</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface2: #334155;
+      --border: #475569;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --primary: #6366f1;
+      --primary-h: #818cf8;
+      --danger: #ef4444;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      height: 56px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    header h1 {
+      font-size: 0.9rem;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: -0.03em;
+    }
+    .project-name {
+      font-size: 0.82rem;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 3px 9px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      transition: all 0.15s;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .project-name:hover { border-color: var(--border); color: var(--text); }
+    .spacer { flex: 1; }
+
+    /* ── Progress bar ── */
+    .prog-wrap {
+      height: 62px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 32px;
+      flex-shrink: 0;
+    }
+    .prog-track {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      max-width: 680px;
+    }
+    .prog-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: opacity 0.15s;
+    }
+    .prog-step:hover { opacity: 0.8; }
+    .prog-circle {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.25s;
+    }
+    .prog-label {
+      font-size: 0.62rem;
+      color: var(--muted);
+      white-space: nowrap;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .prog-step.done .prog-circle {
+      background: rgba(99,102,241,0.15);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .prog-step.done .prog-label { color: var(--primary); }
+    .prog-step.active .prog-circle {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      box-shadow: 0 0 0 4px rgba(99,102,241,0.2);
+    }
+    .prog-step.active .prog-label { color: var(--text); font-weight: 700; }
+    .prog-line {
+      flex: 1;
+      height: 2px;
+      background: var(--border);
+      margin-bottom: 18px;
+      transition: background 0.3s;
+      min-width: 16px;
+    }
+    .prog-line.done { background: var(--primary); }
+
+    /* ── Main ── */
+    main {
+      flex: 1;
+      overflow-y: auto;
+    }
+    .step-page {
+      display: none;
+      min-height: 100%;
+      padding: 40px 32px 32px;
+      animation: pageIn 0.3s ease;
+    }
+    .step-page.active { display: block; }
+    @keyframes pageIn {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .step-inner { max-width: 720px; margin: 0 auto; }
+    .step-inner.wide { max-width: 960px; }
+
+    /* ── Footer nav ── */
+    .nav-footer {
+      height: 64px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      flex-shrink: 0;
+    }
+    .step-counter {
+      font-size: 0.76rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 20px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-h); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+    .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+    .btn-danger:hover { background: rgba(239,68,68,0.1); }
+    .btn-sm { padding: 5px 11px; font-size: 0.73rem; }
+    .btn-icon {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 3px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    .btn-icon:hover { background: rgba(239,68,68,0.15); color: var(--danger); }
+
+    /* ── Section header ── */
+    .section-header { margin-bottom: 28px; }
+    .section-header h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
+    .section-header p {
+      color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 1.7;
+    }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 10px;
+    }
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .card-title { font-weight: 600; font-size: 0.95rem; flex: 1; line-height: 1.4; }
+    .card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .card-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .card-body { color: var(--muted); font-size: 0.83rem; line-height: 1.65; }
+    .card-body + .card-body { margin-top: 6px; }
+    .card-body strong { color: var(--text); }
+
+    /* ── Tags ── */
+    .tag {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 100px;
+      font-size: 0.68rem;
+      font-weight: 600;
+    }
+    .tag-society    { background: rgba(251,146,60,0.15);  color: #fb923c; }
+    .tag-technology { background: rgba(99,102,241,0.15);  color: #818cf8; }
+    .tag-economy    { background: rgba(16,185,129,0.15);  color: #34d399; }
+    .tag-environment{ background: rgba(20,184,166,0.15);  color: #2dd4bf; }
+    .tag-politics   { background: rgba(239,68,68,0.15);   color: #f87171; }
+    .tag-near       { background: rgba(100,116,139,0.15); color: #94a3b8; }
+    .tag-mid        { background: rgba(14,165,233,0.15);  color: #38bdf8; }
+    .tag-far        { background: rgba(139,92,246,0.15);  color: #a78bfa; }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+    .empty-state svg { margin-bottom: 16px; opacity: 0.25; }
+    .empty-state h3 { font-size: 0.95rem; color: var(--text); margin-bottom: 6px; }
+    .empty-state p { font-size: 0.82rem; }
+
+    /* ── Count badge ── */
+    .count-badge {
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 100px;
+    }
+
+    /* ── PPPP ── */
+    .pppp-cone-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 24px 14px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .pppp-cone-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .pppp-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    .pppp-col {
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+    }
+    .pppp-present  { background: rgba(100,116,139,0.08); border: 1px solid rgba(100,116,139,0.25); }
+    .pppp-possible { background: rgba(14,165,233,0.07);  border: 1px solid rgba(14,165,233,0.25); }
+    .pppp-plausible{ background: rgba(139,92,246,0.07);  border: 1px solid rgba(139,92,246,0.25); }
+    .pppp-preferable{background: rgba(16,185,129,0.07);  border: 1px solid rgba(16,185,129,0.25); }
+    .pppp-col-title { font-size: 0.8rem; font-weight: 700; margin-bottom: 3px; }
+    .pppp-present  .pppp-col-title { color: #94a3b8; }
+    .pppp-possible .pppp-col-title { color: #38bdf8; }
+    .pppp-plausible .pppp-col-title { color: #a78bfa; }
+    .pppp-preferable .pppp-col-title { color: #34d399; }
+    .pppp-col-sub { font-size: 0.7rem; color: var(--muted); margin-bottom: 12px; line-height: 1.45; }
+    .pppp-items { flex: 1; }
+    .pppp-item {
+      background: var(--bg);
+      border-radius: 7px;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      font-size: 0.76rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .pppp-item:hover { background: var(--surface2); }
+    .pppp-item-text { flex: 1; line-height: 1.45; }
+    .pppp-add-btn { width: 100%; margin-top: 8px; justify-content: center; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(3px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      width: 100%;
+      max-width: 560px;
+      max-height: 88vh;
+      overflow-y: auto;
+    }
+    .modal h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 24px; }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 28px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Forms ── */
+    .form-group { margin-bottom: 18px; }
+    label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 7px;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+    input[type="text"], textarea, select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 9px 13px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    input[type="text"]:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    select option { background: var(--surface); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    /* ── Summary (Step 5) ── */
+    .summary-wrap {
+      max-width: 960px;
+      margin: 0 auto;
+      padding-bottom: 60px;
+    }
+    .summary-hero {
+      text-align: center;
+      padding: 36px 0 32px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 40px;
+    }
+    .summary-hero h2 {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 6px;
+    }
+    .summary-hero .meta {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .sum-section {
+      margin-bottom: 48px;
+    }
+    .sum-section-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sum-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .sum-section-head h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      flex: 1;
+    }
+    .sum-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .sum-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .sum-card-title {
+      font-weight: 600;
+      font-size: 0.88rem;
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+    .sum-card-body {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .sum-card-body + .sum-card-body { margin-top: 4px; }
+    .sum-card-body strong { color: var(--text); }
+    .sum-card-meta { margin-bottom: 8px; }
+    .sum-empty {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-style: italic;
+    }
+    .sum-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      padding-top: 32px;
+      border-top: 1px solid var(--border);
+      margin-top: 48px;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 80px;
+      right: 24px;
+      background: var(--surface2);
+      color: var(--text);
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: all 0.25s;
+      z-index: 999;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
+
+    /* ── Question Types Panel ── */
+    .types-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .types-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      color: var(--text);
+      transition: background 0.15s;
+    }
+    .types-toggle:hover { background: rgba(255,255,255,0.03); }
+    .types-toggle-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .types-pill {
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: 0.62rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 100px;
+    }
+    .types-chevron { color: var(--muted); flex-shrink: 0; transition: transform 0.2s; }
+    .types-grid-wrap { padding: 2px 14px 14px; }
+    .types-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+    .type-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 10px;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .type-card:hover { transform: translateY(-2px); border-color: var(--primary); }
+    .type-card-num  { font-size: 1rem; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+    .type-card-name { font-size: 0.7rem; font-weight: 700; line-height: 1.3; margin-bottom: 3px; color: var(--text); }
+    .type-card-en   { font-size: 0.63rem; font-style: italic; line-height: 1.3; margin-bottom: 5px; }
+    .type-card-ex   {
+      font-size: 0.6rem;
+      color: var(--muted);
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .f-type-hint {
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: var(--bg);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    /* ── Chat Panel ── */
+    .chat-panel {
+      margin-top: 36px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .chat-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 18px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      color: var(--text);
+      transition: background 0.15s;
+    }
+    .chat-toggle:hover { background: rgba(255,255,255,0.03); }
+    .chat-toggle-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .chat-api-badge {
+      font-size: 0.62rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 100px;
+      background: rgba(245,158,11,0.15);
+      color: #fbbf24;
+      letter-spacing: 0.02em;
+    }
+    .chat-chevron { color: var(--muted); flex-shrink: 0; transition: transform 0.2s; }
+    .chat-body { border-top: 1px solid var(--border); display: flex; flex-direction: column; }
+    .chat-sys-msg {
+      padding: 12px 18px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      background: rgba(99,102,241,0.04);
+      border-bottom: 1px solid var(--border);
+      line-height: 1.65;
+    }
+    .chat-messages {
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .chat-empty {
+      text-align: center;
+      padding: 28px 20px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .chat-msg { display: flex; gap: 10px; align-items: flex-start; }
+    .chat-msg-user { flex-direction: row-reverse; }
+    .chat-avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      letter-spacing: 0;
+    }
+    .chat-msg-user .chat-avatar { background: var(--primary); color: #fff; }
+    .chat-msg-ai  .chat-avatar { background: var(--surface2); color: var(--muted); }
+    .chat-bubble {
+      max-width: 82%;
+      padding: 9px 14px;
+      border-radius: 12px;
+      font-size: 0.82rem;
+      line-height: 1.65;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .chat-msg-user .chat-bubble {
+      background: var(--primary);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .chat-msg-ai .chat-bubble {
+      background: var(--surface2);
+      color: var(--text);
+      border-bottom-left-radius: 4px;
+    }
+    .chat-bubble-placeholder {
+      background: rgba(245,158,11,0.08) !important;
+      border: 1px solid rgba(245,158,11,0.2);
+      color: var(--muted) !important;
+      font-size: 0.76rem !important;
+    }
+    .chat-typing {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 10px 14px;
+      background: var(--surface2);
+      border-radius: 12px;
+      border-bottom-left-radius: 4px;
+    }
+    .chat-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--muted);
+      animation: chatBounce 1.2s infinite ease-in-out;
+    }
+    .chat-dot:nth-child(2) { animation-delay: 0.2s; }
+    .chat-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes chatBounce {
+      0%, 80%, 100% { transform: scale(0.85); opacity: 0.45; }
+      40%           { transform: scale(1.1);  opacity: 1; }
+    }
+    .chat-input-area {
+      padding: 10px 14px 12px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .chat-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      font-family: inherit;
+      resize: none;
+      min-height: 38px;
+      max-height: 110px;
+      line-height: 1.5;
+      overflow-y: auto;
+      transition: border-color 0.15s;
+    }
+    .chat-input:focus { outline: none; border-color: var(--primary); }
+    .chat-send-btn { flex-shrink: 0; padding: 8px 16px; height: 38px; }
+    .chat-ts {
+      font-size: 0.6rem;
+      color: var(--muted);
+      margin-top: 4px;
+      text-align: right;
+    }
+    .chat-msg-ai .chat-ts { text-align: left; }
+
+    /* ── Responsive ── */
+    @media (max-width: 860px) {
+      .pppp-grid { grid-template-columns: repeat(2, 1fr); }
+      .types-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (max-width: 620px) {
+      .step-page { padding: 24px 16px; }
+      .sum-grid { grid-template-columns: 1fr; }
+      .prog-label { display: none; }
+      .prog-line { min-width: 8px; }
+      .types-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <h1>SF Prototyping Tool</h1>
+  <span class="project-name" id="project-name" title="クリックして編集" onclick="editProjectName()">Untitled Project</span>
+  <div class="spacer"></div>
+  <button class="btn btn-ghost btn-sm" onclick="importData()">インポート</button>
+  <button class="btn btn-ghost btn-sm" onclick="exportData()">エクスポート</button>
+</header>
+
+<!-- ── Progress bar ── -->
+<div class="prog-wrap">
+  <div class="prog-track">
+    <div class="prog-step active" id="prog-1" onclick="showStep(1)">
+      <div class="prog-circle" id="pc-1">1</div>
+      <div class="prog-label">問いの生成</div>
+    </div>
+    <div class="prog-line" id="pl-1"></div>
+    <div class="prog-step" id="prog-2" onclick="showStep(2)">
+      <div class="prog-circle" id="pc-2">2</div>
+      <div class="prog-label">未来シナリオ</div>
+    </div>
+    <div class="prog-line" id="pl-2"></div>
+    <div class="prog-step" id="prog-3" onclick="showStep(3)">
+      <div class="prog-circle" id="pc-3">3</div>
+      <div class="prog-label">プロダクト</div>
+    </div>
+    <div class="prog-line" id="pl-3"></div>
+    <div class="prog-step" id="prog-4" onclick="showStep(4)">
+      <div class="prog-circle" id="pc-4">4</div>
+      <div class="prog-label">PPPP</div>
+    </div>
+    <div class="prog-line" id="pl-4"></div>
+    <div class="prog-step" id="prog-5" onclick="showStep(5)">
+      <div class="prog-circle" id="pc-5">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </div>
+      <div class="prog-label">振り返り</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Main content ── -->
+<main id="main">
+
+  <!-- Step 1: 問いの生成 -->
+  <div id="step-1" class="step-page active">
+    <div class="step-inner">
+      <div class="section-header">
+        <h2>問いの生成</h2>
+        <p>探索したい未来の問いを設定します。下の10の類型を参考に問いを立て、カードをクリックしてすぐに追加できます。</p>
+      </div>
+
+      <!-- 問いの10の類型パネル -->
+      <div class="types-panel">
+        <button class="types-toggle" onclick="toggleTypes()">
+          <span class="types-toggle-left">
+            問いの10の類型
+            <span class="types-pill">カードをクリックして追加</span>
+          </span>
+          <svg class="types-chevron" id="types-chevron" width="16" height="16" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.5" style="transform:rotate(180deg)">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        <div id="types-grid-wrap" class="types-grid-wrap">
+          <div class="types-grid" id="types-grid"></div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <span class="count-badge" id="q-count">0件</span>
+        <button class="btn btn-primary" onclick="openModal('question')">＋ 問いを追加</button>
+      </div>
+      <div id="questions-list"></div>
+
+      <!-- Chat: Step 1 -->
+      <div class="chat-panel" id="chat-panel-1">
+        <button class="chat-toggle" onclick="toggleChat(1)">
+          <span class="chat-toggle-left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            AIと壁打ち
+            <span class="chat-api-badge">API未接続</span>
+          </span>
+          <svg class="chat-chevron" id="chat-chevron-1" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="chat-body" id="chat-body-1" style="display:none">
+          <div class="chat-sys-msg">どんな問いを立てたいですか？テーマや気になること、もやもやしていることを自由に話してみてください。一緒に問いを深めましょう。</div>
+          <div class="chat-messages" id="chat-messages-1"></div>
+          <div class="chat-input-area">
+            <textarea class="chat-input" id="chat-input-1" placeholder="例：未来の教育について問いを立てたいのですが..." rows="1"
+                      onkeydown="handleChatKey(event,1)" oninput="autoResizeChat(this)"></textarea>
+            <button class="btn btn-primary chat-send-btn" onclick="sendChatMessage(1)">送信</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: 未来シナリオ -->
+  <div id="step-2" class="step-page">
+    <div class="step-inner">
+      <div class="section-header">
+        <h2>未来シナリオの作成</h2>
+        <p>設定した問いに基づいて、未来のシナリオを描きます。どのような社会・技術変化が起きているか、具体的なストーリーで表現しましょう。</p>
+      </div>
+      <div class="toolbar">
+        <span class="count-badge" id="s-count">0件</span>
+        <button class="btn btn-primary" onclick="openModal('scenario')">＋ シナリオを追加</button>
+      </div>
+      <div id="scenarios-list"></div>
+
+      <!-- Chat: Step 2 -->
+      <div class="chat-panel" id="chat-panel-2">
+        <button class="chat-toggle" onclick="toggleChat(2)">
+          <span class="chat-toggle-left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            AIと壁打ち
+            <span class="chat-api-badge">API未接続</span>
+          </span>
+          <svg class="chat-chevron" id="chat-chevron-2" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="chat-body" id="chat-body-2" style="display:none">
+          <div class="chat-sys-msg">シナリオのアイデアを一緒に考えましょう。どんな未来の世界を描きたいですか？変化のドライバーや登場人物を一緒に探っていきましょう。</div>
+          <div class="chat-messages" id="chat-messages-2"></div>
+          <div class="chat-input-area">
+            <textarea class="chat-input" id="chat-input-2" placeholder="例：10年後のリモートワークの世界を考えています..." rows="1"
+                      onkeydown="handleChatKey(event,2)" oninput="autoResizeChat(this)"></textarea>
+            <button class="btn btn-primary chat-send-btn" onclick="sendChatMessage(2)">送信</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: プロダクト・サービス -->
+  <div id="step-3" class="step-page">
+    <div class="step-inner">
+      <div class="section-header">
+        <h2>未来にある当たり前のプロダクト・サービス</h2>
+        <p>シナリオの世界で日常的に使われているプロダクトやサービスを具体化します。誰が、どのように使うかまで詳しく描きましょう。</p>
+      </div>
+      <div class="toolbar">
+        <span class="count-badge" id="p-count">0件</span>
+        <button class="btn btn-primary" onclick="openModal('product')">＋ プロダクトを追加</button>
+      </div>
+      <div id="products-list"></div>
+
+      <!-- Chat: Step 3 -->
+      <div class="chat-panel" id="chat-panel-3">
+        <button class="chat-toggle" onclick="toggleChat(3)">
+          <span class="chat-toggle-left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            AIと壁打ち
+            <span class="chat-api-badge">API未接続</span>
+          </span>
+          <svg class="chat-chevron" id="chat-chevron-3" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="chat-body" id="chat-body-3" style="display:none">
+          <div class="chat-sys-msg">未来のプロダクト・サービスについてアイデアを膨らませましょう。誰がどう使うか、どんな体験を生み出すか、一緒に具体化していきましょう。</div>
+          <div class="chat-messages" id="chat-messages-3"></div>
+          <div class="chat-input-area">
+            <textarea class="chat-input" id="chat-input-3" placeholder="例：感情認識デバイスのアイデアがあるのですが..." rows="1"
+                      onkeydown="handleChatKey(event,3)" oninput="autoResizeChat(this)"></textarea>
+            <button class="btn btn-primary chat-send-btn" onclick="sendChatMessage(3)">送信</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 4: PPPPロードマップ -->
+  <div id="step-4" class="step-page">
+    <div class="step-inner wide">
+      <div class="section-header">
+        <h2>PPPPロードマップ</h2>
+        <p>Present（現在）→ Possible（可能な未来）→ Plausible（妥当な未来）→ Preferable（望ましい未来）の4段階で未来を整理します。</p>
+      </div>
+      <div class="pppp-cone-wrap">
+        <div class="pppp-cone-label">Future Cone</div>
+        <svg viewBox="0 0 860 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+          <defs>
+            <linearGradient id="gA" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="rgba(14,165,233,0)"/>
+              <stop offset="100%" stop-color="rgba(14,165,233,0.18)"/>
+            </linearGradient>
+            <linearGradient id="gB" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="rgba(139,92,246,0)"/>
+              <stop offset="100%" stop-color="rgba(139,92,246,0.2)"/>
+            </linearGradient>
+            <linearGradient id="gC" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="rgba(16,185,129,0)"/>
+              <stop offset="100%" stop-color="rgba(16,185,129,0.22)"/>
+            </linearGradient>
+          </defs>
+          <polygon points="120,90 840,5 840,175" fill="url(#gA)"/>
+          <polygon points="120,90 840,28 840,152" fill="url(#gB)"/>
+          <polygon points="120,90 840,52 840,128" fill="url(#gC)"/>
+          <line x1="120" y1="90" x2="840" y2="5"   stroke="rgba(14,165,233,0.4)" stroke-width="1"/>
+          <line x1="120" y1="90" x2="840" y2="175"  stroke="rgba(14,165,233,0.4)" stroke-width="1"/>
+          <line x1="120" y1="90" x2="840" y2="28"   stroke="rgba(139,92,246,0.4)" stroke-width="1" stroke-dasharray="5,3"/>
+          <line x1="120" y1="90" x2="840" y2="152"  stroke="rgba(139,92,246,0.4)" stroke-width="1" stroke-dasharray="5,3"/>
+          <line x1="120" y1="90" x2="840" y2="52"   stroke="rgba(16,185,129,0.4)" stroke-width="1" stroke-dasharray="3,3"/>
+          <line x1="120" y1="90" x2="840" y2="128"  stroke="rgba(16,185,129,0.4)" stroke-width="1" stroke-dasharray="3,3"/>
+          <circle cx="120" cy="90" r="6" fill="#475569"/>
+          <circle cx="120" cy="90" r="3" fill="#94a3b8"/>
+          <text x="120" y="115" fill="#64748b" font-size="10" font-family="sans-serif" text-anchor="middle">Now</text>
+          <line x1="350" y1="12" x2="350" y2="168" stroke="rgba(255,255,255,0.05)" stroke-width="1" stroke-dasharray="4,4"/>
+          <text x="350" y="176" fill="rgba(255,255,255,0.2)" font-size="9" font-family="sans-serif" text-anchor="middle">近未来 5年</text>
+          <line x1="600" y1="12" x2="600" y2="168" stroke="rgba(255,255,255,0.05)" stroke-width="1" stroke-dasharray="4,4"/>
+          <text x="600" y="176" fill="rgba(255,255,255,0.2)" font-size="9" font-family="sans-serif" text-anchor="middle">中期 10〜15年</text>
+          <text x="805" y="176" fill="rgba(255,255,255,0.2)" font-size="9" font-family="sans-serif" text-anchor="middle">遠未来</text>
+          <text x="768" y="18"  fill="rgba(14,165,233,0.75)"  font-size="10" font-family="sans-serif" font-weight="700">Possible</text>
+          <text x="768" y="38"  fill="rgba(139,92,246,0.75)" font-size="10" font-family="sans-serif" font-weight="700">Plausible</text>
+          <text x="768" y="58"  fill="rgba(16,185,129,0.8)"  font-size="10" font-family="sans-serif" font-weight="700">Preferable</text>
+        </svg>
+      </div>
+      <div class="pppp-grid">
+        <div class="pppp-col pppp-present">
+          <div class="pppp-col-title">Present</div>
+          <div class="pppp-col-sub">現在の状況・課題・強み</div>
+          <div class="pppp-items" id="pppp-present-items"></div>
+          <button class="btn btn-ghost btn-sm pppp-add-btn" onclick="openModal('pppp','present')">＋ 追加</button>
+        </div>
+        <div class="pppp-col pppp-possible">
+          <div class="pppp-col-title">Possible</div>
+          <div class="pppp-col-sub">技術的・社会的に起こりえる未来</div>
+          <div class="pppp-items" id="pppp-possible-items"></div>
+          <button class="btn btn-ghost btn-sm pppp-add-btn" onclick="openModal('pppp','possible')">＋ 追加</button>
+        </div>
+        <div class="pppp-col pppp-plausible">
+          <div class="pppp-col-title">Plausible</div>
+          <div class="pppp-col-sub">現在の延長線上で起こりそうな未来</div>
+          <div class="pppp-items" id="pppp-plausible-items"></div>
+          <button class="btn btn-ghost btn-sm pppp-add-btn" onclick="openModal('pppp','plausible')">＋ 追加</button>
+        </div>
+        <div class="pppp-col pppp-preferable">
+          <div class="pppp-col-title">Preferable</div>
+          <div class="pppp-col-sub">私たちが目指したい理想の未来</div>
+          <div class="pppp-items" id="pppp-preferable-items"></div>
+          <button class="btn btn-ghost btn-sm pppp-add-btn" onclick="openModal('pppp','preferable')">＋ 追加</button>
+        </div>
+      </div>
+
+      <!-- Chat: Step 4 -->
+      <div class="chat-panel" id="chat-panel-4">
+        <button class="chat-toggle" onclick="toggleChat(4)">
+          <span class="chat-toggle-left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            AIと壁打ち
+            <span class="chat-api-badge">API未接続</span>
+          </span>
+          <svg class="chat-chevron" id="chat-chevron-4" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="chat-body" id="chat-body-4" style="display:none">
+          <div class="chat-sys-msg">PPPPのロードマップを一緒に整理しましょう。現在地から望ましい未来への道筋、どんなシナリオが考えられますか？</div>
+          <div class="chat-messages" id="chat-messages-4"></div>
+          <div class="chat-input-area">
+            <textarea class="chat-input" id="chat-input-4" placeholder="例：Plausibleに入れる要素が思い浮かばなくて..." rows="1"
+                      onkeydown="handleChatKey(event,4)" oninput="autoResizeChat(this)"></textarea>
+            <button class="btn btn-primary chat-send-btn" onclick="sendChatMessage(4)">送信</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 5: 振り返り -->
+  <div id="step-5" class="step-page">
+    <div id="summary-root"></div>
+  </div>
+
+</main>
+
+<!-- ── Footer navigation ── -->
+<footer class="nav-footer">
+  <button id="btn-prev" class="btn btn-ghost" onclick="prevStep()" style="visibility:hidden">
+    ← 前へ
+  </button>
+  <span class="step-counter" id="step-counter">ステップ 1 / 5</span>
+  <button id="btn-next" class="btn btn-primary" onclick="nextStep()">
+    次へ →
+  </button>
+</footer>
+
+<!-- ── Modal ── -->
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<!-- ── Toast ── -->
+<div id="toast"></div>
+
+<!-- File input -->
+<input type="file" id="file-input" accept=".json" style="display:none" onchange="handleImport(event)">
+
+<script>
+// ═══════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════
+let state = {
+  project: { name: 'Untitled Project' },
+  questions: [],
+  scenarios: [],
+  products: [],
+  roadmap: { present: [], possible: [], plausible: [], preferable: [] },
+  chats: { 1: [], 2: [], 3: [], 4: [] }
+};
+
+let currentStep = 1;
+const TOTAL = 5;
+let editingId = null;
+let editZone = null;
+
+// ═══════════════════════════════════════════
+// Persistence
+// ═══════════════════════════════════════════
+function save() {
+  try { localStorage.setItem('sfprotool_v1', JSON.stringify(state)); } catch(e) {}
+}
+
+function loadSaved() {
+  try {
+    const raw = localStorage.getItem('sfprotool_v1');
+    if (raw) {
+      const d = JSON.parse(raw);
+      state = {
+        project:   d.project   || { name: 'Untitled Project' },
+        questions: d.questions || [],
+        scenarios: d.scenarios || [],
+        products:  d.products  || [],
+        roadmap:   { present:[], possible:[], plausible:[], preferable:[], ...(d.roadmap||{}) },
+        chats:     { 1:[], 2:[], 3:[], 4:[], ...(d.chats||{}) }
+      };
+    }
+  } catch(e) {}
+  document.getElementById('project-name').textContent = state.project.name;
+}
+
+// ═══════════════════════════════════════════
+// Navigation
+// ═══════════════════════════════════════════
+function showStep(n) {
+  currentStep = n;
+
+  // Pages
+  for (let i = 1; i <= TOTAL; i++) {
+    document.getElementById(`step-${i}`).classList.toggle('active', i === n);
+  }
+
+  // Progress circles
+  const CHECK = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
+  const EYE   = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+
+  for (let i = 1; i <= TOTAL; i++) {
+    const ps = document.getElementById(`prog-${i}`);
+    const pc = document.getElementById(`pc-${i}`);
+    ps.classList.remove('active', 'done');
+    if (i < n) {
+      ps.classList.add('done');
+      pc.innerHTML = CHECK;
+    } else if (i === n) {
+      ps.classList.add('active');
+      pc.innerHTML = i === 5 ? EYE : String(i);
+    } else {
+      pc.innerHTML = i === 5 ? EYE : String(i);
+    }
+  }
+
+  // Progress lines
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById(`pl-${i}`).classList.toggle('done', i < n);
+  }
+
+  // Footer buttons
+  document.getElementById('btn-prev').style.visibility = n === 1 ? 'hidden' : 'visible';
+  const btnNext = document.getElementById('btn-next');
+  if (n === TOTAL) {
+    btnNext.style.visibility = 'hidden';
+  } else {
+    btnNext.style.visibility = 'visible';
+    btnNext.textContent = n === TOTAL - 1 ? '振り返りへ →' : '次へ →';
+  }
+
+  document.getElementById('step-counter').textContent = `ステップ ${n} / ${TOTAL}`;
+
+  // Render content
+  if (n === TOTAL) {
+    renderSummary();
+  } else {
+    renderAll();
+  }
+
+  document.getElementById('main').scrollTop = 0;
+}
+
+function nextStep() { if (currentStep < TOTAL) showStep(currentStep + 1); }
+function prevStep() { if (currentStep > 1) showStep(currentStep - 1); }
+
+// ═══════════════════════════════════════════
+// Render — Steps 1–4
+// ═══════════════════════════════════════════
+function renderAll() {
+  renderQuestions();
+  renderScenarios();
+  renderProducts();
+  renderRoadmap();
+}
+
+function renderQuestions() {
+  const el = document.getElementById('questions-list');
+  if (!el) return;
+  document.getElementById('q-count').textContent = `${state.questions.length}件`;
+  if (!state.questions.length) {
+    el.innerHTML = emptyHTML('circle-q', '問いがまだありません', '「問いを追加」から最初の問いを設定しましょう');
+    return;
+  }
+  el.innerHTML = state.questions.map(q => `
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">${esc(q.text)}</div>
+        <div class="card-actions">
+          <button class="btn btn-ghost btn-sm" onclick="openModal('question',null,'${q.id}')">編集</button>
+          <button class="btn btn-danger btn-sm" onclick="del('question','${q.id}')">削除</button>
+        </div>
+      </div>
+      <div class="card-meta">
+        ${q.qtype && QUESTION_TYPES[q.qtype-1] ? `<span class="tag" style="background:${QUESTION_TYPES[q.qtype-1].bg};color:${QUESTION_TYPES[q.qtype-1].color}">${QUESTION_TYPES[q.qtype-1].num} ${QUESTION_TYPES[q.qtype-1].name}</span>` : ''}
+        <span class="tag tag-${q.category}">${catL(q.category)}</span>
+        <span class="tag tag-${q.horizon}">${horizL(q.horizon)}</span>
+      </div>
+      ${q.notes ? `<div class="card-body">${esc(q.notes)}</div>` : ''}
+    </div>`).join('');
+}
+
+function renderScenarios() {
+  const el = document.getElementById('scenarios-list');
+  if (!el) return;
+  document.getElementById('s-count').textContent = `${state.scenarios.length}件`;
+  if (!state.scenarios.length) {
+    el.innerHTML = emptyHTML('file', 'シナリオがまだありません', '「シナリオを追加」から最初のシナリオを作成しましょう');
+    return;
+  }
+  el.innerHTML = state.scenarios.map(s => {
+    const relQ = (s.questionIds||[]).map(id => state.questions.find(q => q.id===id)).filter(Boolean);
+    return `
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">${esc(s.title)}</div>
+        <div class="card-actions">
+          <button class="btn btn-ghost btn-sm" onclick="openModal('scenario',null,'${s.id}')">編集</button>
+          <button class="btn btn-danger btn-sm" onclick="del('scenario','${s.id}')">削除</button>
+        </div>
+      </div>
+      <div class="card-meta"><span class="tag tag-${s.horizon}">${horizL(s.horizon)}</span></div>
+      <div class="card-body">${esc(s.description)}</div>
+      ${s.drivers ? `<div class="card-body"><strong>ドライバー：</strong>${esc(s.drivers)}</div>` : ''}
+      ${relQ.length ? `<div class="card-body"><strong>関連する問い：</strong>${relQ.map(q=>esc(q.text)).join(' / ')}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderProducts() {
+  const el = document.getElementById('products-list');
+  if (!el) return;
+  document.getElementById('p-count').textContent = `${state.products.length}件`;
+  if (!state.products.length) {
+    el.innerHTML = emptyHTML('monitor', 'プロダクト・サービスがまだありません', '「プロダクトを追加」から定義しましょう');
+    return;
+  }
+  el.innerHTML = state.products.map(p => `
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">${esc(p.name)}</div>
+        <div class="card-actions">
+          <button class="btn btn-ghost btn-sm" onclick="openModal('product',null,'${p.id}')">編集</button>
+          <button class="btn btn-danger btn-sm" onclick="del('product','${p.id}')">削除</button>
+        </div>
+      </div>
+      ${p.category ? `<div class="card-meta"><span class="tag tag-${p.category}">${catL(p.category)}</span></div>` : ''}
+      <div class="card-body">${esc(p.description)}</div>
+      ${p.users    ? `<div class="card-body"><strong>対象ユーザー：</strong>${esc(p.users)}</div>` : ''}
+      ${p.useCases ? `<div class="card-body"><strong>ユースケース：</strong>${esc(p.useCases)}</div>` : ''}
+    </div>`).join('');
+}
+
+function renderRoadmap() {
+  ['present','possible','plausible','preferable'].forEach(zone => {
+    const el = document.getElementById(`pppp-${zone}-items`);
+    if (!el) return;
+    el.innerHTML = (state.roadmap[zone]||[]).map(item => `
+      <div class="pppp-item" onclick="openModal('pppp','${zone}','${item.id}')">
+        <div class="pppp-item-text">${esc(item.text)}</div>
+        <button class="btn-icon" onclick="event.stopPropagation();del('pppp-${zone}','${item.id}')">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>`).join('');
+  });
+}
+
+// ═══════════════════════════════════════════
+// Render — Step 5: Summary
+// ═══════════════════════════════════════════
+function renderSummary() {
+  const date = new Date().toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric' });
+  const zones = [
+    { key:'present',    cls:'pppp-present',   label:'Present（現在）',         color:'#94a3b8' },
+    { key:'possible',   cls:'pppp-possible',  label:'Possible（可能な未来）',   color:'#38bdf8' },
+    { key:'plausible',  cls:'pppp-plausible', label:'Plausible（妥当な未来）',  color:'#a78bfa' },
+    { key:'preferable', cls:'pppp-preferable',label:'Preferable（望ましい未来）',color:'#34d399' }
+  ];
+
+  document.getElementById('summary-root').innerHTML = `
+  <div class="summary-wrap">
+
+    <!-- Hero -->
+    <div class="summary-hero">
+      <h2>${esc(state.project.name)}</h2>
+      <div class="meta">SF Prototyping セッション振り返り ・ ${date}</div>
+    </div>
+
+    <!-- 1. Questions -->
+    <div class="sum-section">
+      <div class="sum-section-head">
+        <div class="sum-num">1</div>
+        <h3>問いの生成</h3>
+        <button class="btn btn-ghost btn-sm" onclick="showStep(1)">編集</button>
+      </div>
+      ${state.questions.length ? `
+        <div class="sum-grid">
+          ${state.questions.map(q => `
+            <div class="sum-card">
+              <div class="sum-card-meta">
+                ${q.qtype && QUESTION_TYPES[q.qtype-1] ? `<span class="tag" style="background:${QUESTION_TYPES[q.qtype-1].bg};color:${QUESTION_TYPES[q.qtype-1].color};margin-bottom:4px;display:inline-block">${QUESTION_TYPES[q.qtype-1].num} ${QUESTION_TYPES[q.qtype-1].name}</span><br>` : ''}
+                <span class="tag tag-${q.category}">${catL(q.category)}</span>
+                <span class="tag tag-${q.horizon}" style="margin-left:4px">${horizL(q.horizon)}</span>
+              </div>
+              <div class="sum-card-title">${esc(q.text)}</div>
+              ${q.notes ? `<div class="sum-card-body">${esc(q.notes)}</div>` : ''}
+            </div>`).join('')}
+        </div>`
+      : `<div class="sum-empty">問いが設定されていません</div>`}
+    </div>
+
+    <!-- 2. Scenarios -->
+    <div class="sum-section">
+      <div class="sum-section-head">
+        <div class="sum-num">2</div>
+        <h3>未来シナリオ</h3>
+        <button class="btn btn-ghost btn-sm" onclick="showStep(2)">編集</button>
+      </div>
+      ${state.scenarios.length ? `
+        ${state.scenarios.map(s => {
+          const relQ = (s.questionIds||[]).map(id => state.questions.find(q=>q.id===id)).filter(Boolean);
+          return `
+          <div class="sum-card" style="margin-bottom:10px">
+            <div class="sum-card-meta"><span class="tag tag-${s.horizon}">${horizL(s.horizon)}</span></div>
+            <div class="sum-card-title">${esc(s.title)}</div>
+            <div class="sum-card-body" style="margin-top:6px">${esc(s.description)}</div>
+            ${s.drivers ? `<div class="sum-card-body"><strong>ドライバー：</strong>${esc(s.drivers)}</div>` : ''}
+            ${relQ.length ? `<div class="sum-card-body"><strong>関連する問い：</strong>${relQ.map(q=>esc(q.text)).join(' / ')}</div>` : ''}
+          </div>`;
+        }).join('')}`
+      : `<div class="sum-empty">シナリオが作成されていません</div>`}
+    </div>
+
+    <!-- 3. Products -->
+    <div class="sum-section">
+      <div class="sum-section-head">
+        <div class="sum-num">3</div>
+        <h3>プロダクト・サービス</h3>
+        <button class="btn btn-ghost btn-sm" onclick="showStep(3)">編集</button>
+      </div>
+      ${state.products.length ? `
+        <div class="sum-grid">
+          ${state.products.map(p => `
+            <div class="sum-card">
+              ${p.category ? `<div class="sum-card-meta"><span class="tag tag-${p.category}">${catL(p.category)}</span></div>` : ''}
+              <div class="sum-card-title">${esc(p.name)}</div>
+              <div class="sum-card-body">${esc(p.description)}</div>
+              ${p.users    ? `<div class="sum-card-body"><strong>対象：</strong>${esc(p.users)}</div>` : ''}
+              ${p.useCases ? `<div class="sum-card-body"><strong>使い方：</strong>${esc(p.useCases)}</div>` : ''}
+            </div>`).join('')}
+        </div>`
+      : `<div class="sum-empty">プロダクト・サービスが設定されていません</div>`}
+    </div>
+
+    <!-- 4. PPPP -->
+    <div class="sum-section">
+      <div class="sum-section-head">
+        <div class="sum-num">4</div>
+        <h3>PPPPロードマップ</h3>
+        <button class="btn btn-ghost btn-sm" onclick="showStep(4)">編集</button>
+      </div>
+
+      <!-- Cone (re-render with unique gradient IDs) -->
+      <div class="pppp-cone-wrap" style="margin-bottom:20px">
+        <svg viewBox="0 0 860 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+          <defs>
+            <linearGradient id="sA" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="rgba(14,165,233,0)"/>
+              <stop offset="100%" stop-color="rgba(14,165,233,0.18)"/>
+            </linearGradient>
+            <linearGradient id="sB" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="rgba(139,92,246,0)"/>
+              <stop offset="100%" stop-color="rgba(139,92,246,0.2)"/>
+            </linearGradient>
+            <linearGradient id="sC" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="rgba(16,185,129,0)"/>
+              <stop offset="100%" stop-color="rgba(16,185,129,0.22)"/>
+            </linearGradient>
+          </defs>
+          <polygon points="120,90 840,5 840,175" fill="url(#sA)"/>
+          <polygon points="120,90 840,28 840,152" fill="url(#sB)"/>
+          <polygon points="120,90 840,52 840,128" fill="url(#sC)"/>
+          <line x1="120" y1="90" x2="840" y2="5"   stroke="rgba(14,165,233,0.4)" stroke-width="1"/>
+          <line x1="120" y1="90" x2="840" y2="175"  stroke="rgba(14,165,233,0.4)" stroke-width="1"/>
+          <line x1="120" y1="90" x2="840" y2="28"   stroke="rgba(139,92,246,0.4)" stroke-width="1" stroke-dasharray="5,3"/>
+          <line x1="120" y1="90" x2="840" y2="152"  stroke="rgba(139,92,246,0.4)" stroke-width="1" stroke-dasharray="5,3"/>
+          <line x1="120" y1="90" x2="840" y2="52"   stroke="rgba(16,185,129,0.4)" stroke-width="1" stroke-dasharray="3,3"/>
+          <line x1="120" y1="90" x2="840" y2="128"  stroke="rgba(16,185,129,0.4)" stroke-width="1" stroke-dasharray="3,3"/>
+          <circle cx="120" cy="90" r="6" fill="#475569"/>
+          <circle cx="120" cy="90" r="3" fill="#94a3b8"/>
+          <text x="120" y="115" fill="#64748b" font-size="10" font-family="sans-serif" text-anchor="middle">Now</text>
+          <line x1="350" y1="12" x2="350" y2="168" stroke="rgba(255,255,255,0.05)" stroke-width="1" stroke-dasharray="4,4"/>
+          <text x="350" y="176" fill="rgba(255,255,255,0.2)" font-size="9" font-family="sans-serif" text-anchor="middle">近未来 5年</text>
+          <line x1="600" y1="12" x2="600" y2="168" stroke="rgba(255,255,255,0.05)" stroke-width="1" stroke-dasharray="4,4"/>
+          <text x="600" y="176" fill="rgba(255,255,255,0.2)" font-size="9" font-family="sans-serif" text-anchor="middle">中期 10〜15年</text>
+          <text x="805" y="176" fill="rgba(255,255,255,0.2)" font-size="9" font-family="sans-serif" text-anchor="middle">遠未来</text>
+          <text x="768" y="18"  fill="rgba(14,165,233,0.75)"  font-size="10" font-family="sans-serif" font-weight="700">Possible</text>
+          <text x="768" y="38"  fill="rgba(139,92,246,0.75)" font-size="10" font-family="sans-serif" font-weight="700">Plausible</text>
+          <text x="768" y="58"  fill="rgba(16,185,129,0.8)"  font-size="10" font-family="sans-serif" font-weight="700">Preferable</text>
+        </svg>
+      </div>
+
+      <!-- PPPP items grid (read-only) -->
+      <div class="pppp-grid">
+        ${zones.map(z => {
+          const items = state.roadmap[z.key] || [];
+          return `
+          <div class="pppp-col ${z.cls}">
+            <div class="pppp-col-title">${z.label}</div>
+            <div class="pppp-items">
+              ${items.length
+                ? items.map(item => `
+                    <div class="pppp-item" style="cursor:default">
+                      <div class="pppp-item-text">${esc(item.text)}</div>
+                    </div>`).join('')
+                : `<div style="font-size:0.72rem;color:var(--muted);font-style:italic;padding:4px 0">未記入</div>`}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="sum-actions">
+      <button class="btn btn-ghost" onclick="showStep(1)">← 最初に戻る</button>
+      <button class="btn btn-primary" onclick="exportData()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        エクスポート
+      </button>
+    </div>
+
+  </div>`;
+}
+
+// ═══════════════════════════════════════════
+// Chat
+// ═══════════════════════════════════════════
+const _chatOpen = { 1: false, 2: false, 3: false, 4: false };
+
+function toggleChat(step) {
+  _chatOpen[step] = !_chatOpen[step];
+  const body    = document.getElementById(`chat-body-${step}`);
+  const chevron = document.getElementById(`chat-chevron-${step}`);
+  if (body)    body.style.display    = _chatOpen[step] ? '' : 'none';
+  if (chevron) chevron.style.transform = _chatOpen[step] ? 'rotate(180deg)' : '';
+  if (_chatOpen[step]) { renderChat(step); setTimeout(() => scrollChatBottom(step), 50); }
+}
+
+function renderChat(step) {
+  const el = document.getElementById(`chat-messages-${step}`);
+  if (!el) return;
+  const msgs = (state.chats[step] || []);
+  if (!msgs.length) {
+    el.innerHTML = `<div class="chat-empty">まだメッセージがありません。<br>質問や思考の整理など、自由に話しかけてみてください。</div>`;
+    return;
+  }
+  el.innerHTML = msgs.map(m => {
+    if (m.typing) return `
+      <div class="chat-msg chat-msg-ai">
+        <div class="chat-avatar">AI</div>
+        <div class="chat-typing">
+          <div class="chat-dot"></div><div class="chat-dot"></div><div class="chat-dot"></div>
+        </div>
+      </div>`;
+    const isUser = m.role === 'user';
+    const time   = new Date(m.ts).toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit' });
+    return `
+      <div class="chat-msg chat-msg-${isUser ? 'user' : 'ai'}">
+        <div class="chat-avatar">${isUser ? 'You' : 'AI'}</div>
+        <div>
+          <div class="chat-bubble${m.placeholder ? ' chat-bubble-placeholder' : ''}">${esc(m.text)}</div>
+          <div class="chat-ts">${time}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function scrollChatBottom(step) {
+  const el = document.getElementById(`chat-messages-${step}`);
+  if (el) el.scrollTop = el.scrollHeight;
+}
+
+async function sendChatMessage(step) {
+  const input = document.getElementById(`chat-input-${step}`);
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+
+  if (!state.chats[step]) state.chats[step] = [];
+  state.chats[step].push({ id: uid(), role: 'user', text, ts: Date.now() });
+  input.value = '';
+  input.style.height = '';
+  save();
+  renderChat(step);
+  scrollChatBottom(step);
+
+  // Show typing indicator
+  state.chats[step].push({ id: '_typing', typing: true });
+  renderChat(step);
+  scrollChatBottom(step);
+
+  await new Promise(r => setTimeout(r, 800));
+
+  state.chats[step] = state.chats[step].filter(m => !m.typing);
+  state.chats[step].push({
+    id: uid(), role: 'assistant', ts: Date.now(), placeholder: true,
+    text: 'APIが接続されていないため、現在は返答できません。\nAPIを設定すると、ここでClaudeとリアルタイムで壁打ちができるようになります。'
+  });
+  save();
+  renderChat(step);
+  scrollChatBottom(step);
+}
+
+function handleChatKey(event, step) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    sendChatMessage(step);
+  }
+}
+
+function autoResizeChat(el) {
+  el.style.height = '';
+  el.style.height = Math.min(el.scrollHeight, 110) + 'px';
+}
+
+// ═══════════════════════════════════════════
+// Question Types
+// ═══════════════════════════════════════════
+const QUESTION_TYPES = [
+  { num:'①', name:'仮定型',           en:'What if...?',                    example:'もし料理が感情を持っていたら？',                                              color:'#818cf8', bg:'rgba(99,102,241,0.12)'  },
+  { num:'②', name:'逆転型',            en:'What if it were the opposite?',  example:'もし"食べる人"ではなく"食材"が食べられる人を選ぶ社会だったら？',            color:'#fb923c', bg:'rgba(249,115,22,0.12)'   },
+  { num:'③', name:'拡張・極端化型',    en:'What if it went too far?',       example:'もし一日中ずっと食べ続けることが標準になったら？',                         color:'#fbbf24', bg:'rgba(245,158,11,0.12)'   },
+  { num:'④', name:'転用・誤用型',      en:'What if we used X for Y?',       example:'もし"食べること"が投資対象になったら？',                                  color:'#34d399', bg:'rgba(16,185,129,0.12)'   },
+  { num:'⑤', name:'環境・世界設定型',  en:'What kind of world would...?',   example:'どんな社会なら"食事の時間"という概念が存在しないのか？',                 color:'#22d3ee', bg:'rgba(6,182,212,0.12)'    },
+  { num:'⑥', name:'主体変化型',        en:'What if I were...?',             example:'もし自分が食材だったら、誰にどんなふうに食べられたい？',                 color:'#f472b6', bg:'rgba(236,72,153,0.12)'   },
+  { num:'⑦', name:'規範・価値観ゆらぎ型', en:'What if values changed?',    example:'"まずいこと"がステータスになる時代が来たら？',                          color:'#a78bfa', bg:'rgba(139,92,246,0.12)'   },
+  { num:'⑧', name:'不在・消失型',      en:'What if X disappeared?',         example:'もし"満腹"という感覚がなくなったら？',                                  color:'#94a3b8', bg:'rgba(100,116,139,0.12)'  },
+  { num:'⑨', name:'進化・融合型',      en:'What if X and Y merged?',        example:'もし"食べること"と"学ぶこと"が完全に融合したら？',                       color:'#2dd4bf', bg:'rgba(20,184,166,0.12)'   },
+  { num:'⑩', name:'観察・再定義型',    en:'How might we see X differently?',example:'"食べる"ってそもそも何のためにある？',                                    color:'#a3e635', bg:'rgba(132,204,22,0.12)'   },
+];
+
+let _preType   = null;
+let _typesOpen = true;
+
+function renderTypeCards() {
+  const grid = document.getElementById('types-grid');
+  if (!grid) return;
+  grid.innerHTML = QUESTION_TYPES.map((t, i) => `
+    <div class="type-card" onclick="openModalWithType(${i+1})"
+         style="border-top: 2px solid ${t.color}">
+      <div class="type-card-num" style="color:${t.color}">${t.num}</div>
+      <div class="type-card-name">${esc(t.name)}</div>
+      <div class="type-card-en"  style="color:${t.color}">${esc(t.en)}</div>
+      <div class="type-card-ex">${esc(t.example)}</div>
+    </div>`).join('');
+}
+
+function toggleTypes() {
+  _typesOpen = !_typesOpen;
+  const wrap    = document.getElementById('types-grid-wrap');
+  const chevron = document.getElementById('types-chevron');
+  if (wrap)    wrap.style.display = _typesOpen ? '' : 'none';
+  if (chevron) chevron.style.transform = _typesOpen ? 'rotate(180deg)' : '';
+}
+
+function openModalWithType(idx) {
+  _preType = idx;
+  openModal('question');
+}
+
+function updateTypeHint(val) {
+  const hint = document.getElementById('f-type-hint');
+  if (!hint) return;
+  const idx = parseInt(val);
+  if (!idx || !QUESTION_TYPES[idx - 1]) { hint.style.display = 'none'; hint.innerHTML = ''; return; }
+  const t = QUESTION_TYPES[idx - 1];
+  hint.style.display = '';
+  hint.innerHTML = `
+    <div style="font-size:0.72rem;color:${t.color};font-style:italic">${esc(t.en)}</div>
+    <div style="font-size:0.72rem;color:var(--muted);margin-top:3px">例：${esc(t.example)}</div>`;
+}
+
+// ═══════════════════════════════════════════
+// Modal
+// ═══════════════════════════════════════════
+function openModal(type, zone, id) {
+  editingId = id || null;
+  editZone  = zone || null;
+  const content = document.getElementById('modal-content');
+
+  if (type === 'question') {
+    const q = id ? state.questions.find(x => x.id===id) : null;
+    const preType = _preType; _preType = null;
+    const activeType = preType || q?.qtype || null;
+    const qtypeOpts = QUESTION_TYPES.map((t, i) =>
+      `<option value="${i+1}" ${activeType===i+1?'selected':''}>${t.num} ${t.name}</option>`
+    ).join('');
+    content.innerHTML = `
+      <h3>${q ? '問いを編集' : '問いを追加'}</h3>
+      <div class="form-group">
+        <label>類型（任意）</label>
+        <select id="f-qtype" onchange="updateTypeHint(this.value)">
+          <option value="">選択しない</option>
+          ${qtypeOpts}
+        </select>
+        <div class="f-type-hint" id="f-type-hint" style="display:none"></div>
+      </div>
+      <div class="form-group">
+        <label>問い <span style="color:var(--danger)">*</span></label>
+        <textarea id="f-text" placeholder="例：2040年、AIが感情を持つとき、人間の仕事はどう変わるか？">${q?esc(q.text):''}</textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>カテゴリ（STEEP）</label>
+          <select id="f-category">
+            <option value="society"     ${q?.category==='society'    ?'selected':''}>社会 (Society)</option>
+            <option value="technology"  ${q?.category==='technology' ?'selected':''}>技術 (Technology)</option>
+            <option value="economy"     ${q?.category==='economy'    ?'selected':''}>経済 (Economy)</option>
+            <option value="environment" ${q?.category==='environment'?'selected':''}>環境 (Environment)</option>
+            <option value="politics"    ${q?.category==='politics'   ?'selected':''}>政治 (Politics)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>時間軸</label>
+          <select id="f-horizon">
+            <option value="near" ${q?.horizon==='near'?'selected':''}>近未来（〜5年）</option>
+            <option value="mid"  ${q?.horizon==='mid' ?'selected':''}>中期（5〜15年）</option>
+            <option value="far"  ${q?.horizon==='far' ?'selected':''}>遠未来（15年〜）</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>メモ・背景</label>
+        <textarea id="f-notes" placeholder="この問いを設定した背景や補足情報...">${q?esc(q.notes||''):''}</textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal()">キャンセル</button>
+        <button class="btn btn-primary" onclick="saveQuestion()">保存</button>
+      </div>`;
+    if (activeType) updateTypeHint(activeType);
+
+  } else if (type === 'scenario') {
+    const s = id ? state.scenarios.find(x => x.id===id) : null;
+    const qOpts = state.questions.map(q =>
+      `<option value="${q.id}" ${s?.questionIds?.includes(q.id)?'selected':''}>${esc(q.text.length>50?q.text.slice(0,50)+'…':q.text)}</option>`
+    ).join('');
+    content.innerHTML = `
+      <h3>${s ? 'シナリオを編集' : 'シナリオを追加'}</h3>
+      <div class="form-group">
+        <label>タイトル <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="f-title" placeholder="例：AIが感情を持つ2035年の家族像" value="${s?esc(s.title):''}">
+      </div>
+      <div class="form-group">
+        <label>時間軸</label>
+        <select id="f-horizon">
+          <option value="near" ${s?.horizon==='near'?'selected':''}>近未来（〜5年）</option>
+          <option value="mid"  ${s?.horizon==='mid' ?'selected':''}>中期（5〜15年）</option>
+          <option value="far"  ${s?.horizon==='far' ?'selected':''}>遠未来（15年〜）</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>シナリオの記述 <span style="color:var(--danger)">*</span></label>
+        <textarea id="f-description" style="min-height:130px" placeholder="世界観・状況を具体的なストーリーで描写...">${s?esc(s.description):''}</textarea>
+      </div>
+      <div class="form-group">
+        <label>主要ドライバー</label>
+        <input type="text" id="f-drivers" placeholder="例：AI進化、高齢化、脱炭素化" value="${s?esc(s.drivers||''):''}">
+      </div>
+      ${state.questions.length ? `
+      <div class="form-group">
+        <label>関連する問い（複数選択可）</label>
+        <select id="f-questions" multiple style="min-height:80px">${qOpts}</select>
+      </div>` : ''}
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal()">キャンセル</button>
+        <button class="btn btn-primary" onclick="saveScenario()">保存</button>
+      </div>`;
+
+  } else if (type === 'product') {
+    const p = id ? state.products.find(x => x.id===id) : null;
+    content.innerHTML = `
+      <h3>${p ? 'プロダクト・サービスを編集' : 'プロダクト・サービスを追加'}</h3>
+      <div class="form-group">
+        <label>名称 <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="f-name" placeholder="例：感情共鳴型AIコンパニオン" value="${p?esc(p.name):''}">
+      </div>
+      <div class="form-group">
+        <label>カテゴリ</label>
+        <select id="f-category">
+          <option value="technology"  ${p?.category==='technology' ?'selected':''}>テクノロジー</option>
+          <option value="society"     ${p?.category==='society'    ?'selected':''}>社会サービス</option>
+          <option value="economy"     ${p?.category==='economy'    ?'selected':''}>経済・ビジネス</option>
+          <option value="environment" ${p?.category==='environment'?'selected':''}>環境・インフラ</option>
+          <option value="politics"    ${p?.category==='politics'   ?'selected':''}>ガバナンス・制度</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>概要・説明 <span style="color:var(--danger)">*</span></label>
+        <textarea id="f-description" placeholder="このプロダクト・サービスが何をするものか...">${p?esc(p.description):''}</textarea>
+      </div>
+      <div class="form-group">
+        <label>対象ユーザー</label>
+        <input type="text" id="f-users" placeholder="例：独居高齢者、リモートワーカー" value="${p?esc(p.users||''):''}">
+      </div>
+      <div class="form-group">
+        <label>主なユースケース</label>
+        <textarea id="f-usecases" placeholder="日常の中でどのように使われるか...">${p?esc(p.useCases||''):''}</textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal()">キャンセル</button>
+        <button class="btn btn-primary" onclick="saveProduct()">保存</button>
+      </div>`;
+
+  } else if (type === 'pppp') {
+    const items = state.roadmap[zone] || [];
+    const item = id ? items.find(x => x.id===id) : null;
+    const labels = {
+      present:'Present（現在）', possible:'Possible（可能な未来）',
+      plausible:'Plausible（妥当な未来）', preferable:'Preferable（望ましい未来）'
+    };
+    content.innerHTML = `
+      <h3>${labels[zone]}へ${item ? '編集' : '追加'}</h3>
+      <div class="form-group">
+        <label>内容 <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="f-text" placeholder="内容を入力..." value="${item?esc(item.text):''}">
+      </div>
+      <div class="form-group">
+        <label>詳細メモ</label>
+        <textarea id="f-notes" placeholder="補足情報や根拠など...">${item?esc(item.notes||''):''}</textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal()">キャンセル</button>
+        <button class="btn btn-primary" onclick="savePPPP('${zone}')">保存</button>
+      </div>`;
+  }
+
+  document.getElementById('modal-overlay').classList.add('open');
+  setTimeout(() => { const f = content.querySelector('input,textarea'); if(f) f.focus(); }, 50);
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  editingId = null; editZone = null;
+}
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+}
+
+// ═══════════════════════════════════════════
+// Save
+// ═══════════════════════════════════════════
+function saveQuestion() {
+  const text = document.getElementById('f-text').value.trim();
+  if (!text) { toast('問いを入力してください'); return; }
+  const q = {
+    id: editingId || uid(), text,
+    qtype:    parseInt(document.getElementById('f-qtype')?.value) || null,
+    category: document.getElementById('f-category').value,
+    horizon:  document.getElementById('f-horizon').value,
+    notes:    document.getElementById('f-notes').value.trim()
+  };
+  if (editingId) { const i=state.questions.findIndex(x=>x.id===editingId); state.questions[i]=q; }
+  else state.questions.push(q);
+  save(); closeModal(); renderQuestions(); toast('保存しました');
+}
+
+function saveScenario() {
+  const title = document.getElementById('f-title').value.trim();
+  const desc  = document.getElementById('f-description').value.trim();
+  if (!title||!desc) { toast('タイトルと説明は必須です'); return; }
+  const qSel = document.getElementById('f-questions');
+  const s = {
+    id: editingId || uid(), title, description: desc,
+    horizon:     document.getElementById('f-horizon').value,
+    drivers:     document.getElementById('f-drivers').value.trim(),
+    questionIds: qSel ? Array.from(qSel.selectedOptions).map(o=>o.value) : []
+  };
+  if (editingId) { const i=state.scenarios.findIndex(x=>x.id===editingId); state.scenarios[i]=s; }
+  else state.scenarios.push(s);
+  save(); closeModal(); renderScenarios(); toast('保存しました');
+}
+
+function saveProduct() {
+  const name = document.getElementById('f-name').value.trim();
+  const desc = document.getElementById('f-description').value.trim();
+  if (!name||!desc) { toast('名称と説明は必須です'); return; }
+  const p = {
+    id: editingId || uid(), name, description: desc,
+    category: document.getElementById('f-category').value,
+    users:    document.getElementById('f-users').value.trim(),
+    useCases: document.getElementById('f-usecases').value.trim()
+  };
+  if (editingId) { const i=state.products.findIndex(x=>x.id===editingId); state.products[i]=p; }
+  else state.products.push(p);
+  save(); closeModal(); renderProducts(); toast('保存しました');
+}
+
+function savePPPP(zone) {
+  const text = document.getElementById('f-text').value.trim();
+  if (!text) { toast('内容を入力してください'); return; }
+  const item = { id: editingId||uid(), text, notes: document.getElementById('f-notes').value.trim() };
+  if (!state.roadmap[zone]) state.roadmap[zone] = [];
+  if (editingId) { const i=state.roadmap[zone].findIndex(x=>x.id===editingId); state.roadmap[zone][i]=item; }
+  else state.roadmap[zone].push(item);
+  save(); closeModal(); renderRoadmap(); toast('保存しました');
+}
+
+// ═══════════════════════════════════════════
+// Delete
+// ═══════════════════════════════════════════
+function del(type, id) {
+  if (!confirm('このアイテムを削除しますか？')) return;
+  if      (type==='question') { state.questions=state.questions.filter(x=>x.id!==id); save(); renderQuestions(); }
+  else if (type==='scenario') { state.scenarios=state.scenarios.filter(x=>x.id!==id); save(); renderScenarios(); }
+  else if (type==='product')  { state.products =state.products.filter(x=>x.id!==id);  save(); renderProducts();  }
+  else if (type.startsWith('pppp-')) {
+    const zone=type.replace('pppp-','');
+    state.roadmap[zone]=(state.roadmap[zone]||[]).filter(x=>x.id!==id);
+    save(); renderRoadmap();
+  }
+  toast('削除しました');
+}
+
+// ═══════════════════════════════════════════
+// Export / Import
+// ═══════════════════════════════════════════
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `sfproto-${state.project.name.replace(/[\s\/\\:*?"<>|]/g,'_')}-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('エクスポートしました');
+}
+
+function importData() { document.getElementById('file-input').click(); }
+
+function handleImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const d = JSON.parse(e.target.result);
+      state = {
+        project:   d.project   || { name: 'Imported Project' },
+        questions: d.questions || [],
+        scenarios: d.scenarios || [],
+        products:  d.products  || [],
+        roadmap:   { present:[], possible:[], plausible:[], preferable:[], ...(d.roadmap||{}) }
+      };
+      save();
+      document.getElementById('project-name').textContent = state.project.name;
+      showStep(currentStep);
+      toast('インポートしました');
+    } catch { toast('読み込みに失敗しました'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ═══════════════════════════════════════════
+// Project name
+// ═══════════════════════════════════════════
+function editProjectName() {
+  const name = prompt('プロジェクト名を入力:', state.project.name);
+  if (name !== null && name.trim()) {
+    state.project.name = name.trim();
+    document.getElementById('project-name').textContent = state.project.name;
+    save();
+  }
+}
+
+// ═══════════════════════════════════════════
+// Utilities
+// ═══════════════════════════════════════════
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function catL(c) {
+  return { society:'社会', technology:'技術', economy:'経済', environment:'環境', politics:'政治' }[c] || c;
+}
+function horizL(h) {
+  return { near:'近未来', mid:'中期', far:'遠未来' }[h] || h;
+}
+
+function emptyHTML(icon, title, sub) {
+  const icons = {
+    'circle-q': `<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>`,
+    'file':     `<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>`,
+    'monitor':  `<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>`
+  };
+  return `<div class="empty-state">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">${icons[icon]||''}</svg>
+    <h3>${title}</h3><p>${sub}</p>
+  </div>`;
+}
+
+let _toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+// ═══════════════════════════════════════════
+// Keyboard
+// ═══════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+// ═══════════════════════════════════════════
+// Init
+// ═══════════════════════════════════════════
+loadSaved();
+renderTypeCards();
+showStep(1);
+</script>
+</body>
+</html>
